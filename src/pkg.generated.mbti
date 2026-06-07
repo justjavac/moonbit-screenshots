@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "justjavac/screenshots"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn capture_to_file(CaptureTarget, String) -> Bool
+
+pub fn clamp_area(CaptureArea) -> CaptureArea
+
+pub fn intersect(CaptureArea, CaptureArea) -> CaptureArea?
+
+pub fn output_name(String, Int) -> String
+
+pub fn pixel_count(CaptureArea) -> Int
+
+pub fn target_label(CaptureTarget) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct CaptureArea {
+  x : Int
+  y : Int
+  width : Int
+  height : Int
+} derive(Eq, @debug.Debug)
+pub impl Show for CaptureArea
+
+pub(all) enum CaptureTarget {
+  AllDisplays
+  Display(Int)
+  Window(UInt64)
+  Area(CaptureArea)
+} derive(Eq, @debug.Debug)
+pub impl Show for CaptureTarget
+
+// Type aliases
+
+// Traits
+

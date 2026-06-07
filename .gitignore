@@ -1,0 +1,8 @@
+_build/
+.mooncakes/
+coverage.xml
+coverage-*.xml
+*.gcda
+*.gcno
+*.profraw
+*.profdata

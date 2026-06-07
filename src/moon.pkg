@@ -1,0 +1,15 @@
+import {
+  "justjavac/ffi",
+}
+
+supported_targets = "native"
+
+options(
+  "native-stub": [
+    "native_runner.c",
+    "png_writer.c",
+    "native_windows.c",
+    "native_macos.c",
+    "native_linux.c",
+  ],
+)
