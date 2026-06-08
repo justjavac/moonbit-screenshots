@@ -17,6 +17,82 @@ typedef struct {
   RECT rect;
 } MoonBitScreenshotsMonitorContext;
 
+typedef struct {
+  HMODULE module;
+  HDC(WINAPI *create_compatible_dc)(HDC);
+  HBITMAP(WINAPI *create_compatible_bitmap)(HDC, int, int);
+  HGDIOBJ(WINAPI *select_object)(HDC, HGDIOBJ);
+  BOOL(WINAPI *bit_blt)(HDC, int, int, int, int, HDC, int, int, DWORD);
+  int(WINAPI *get_di_bits)(HDC, HBITMAP, UINT, UINT, LPVOID, LPBITMAPINFO, UINT);
+  BOOL(WINAPI *delete_object)(HGDIOBJ);
+  BOOL(WINAPI *delete_dc)(HDC);
+} MoonBitScreenshotsGdi;
+
+static FARPROC moonbit_screenshots_gdi_proc(HMODULE module, const char *name) {
+  return module == NULL ? NULL : GetProcAddress(module, name);
+}
+
+static int moonbit_screenshots_load_gdi(MoonBitScreenshotsGdi *gdi) {
+  if (gdi == NULL) {
+    return -1;
+  }
+  HMODULE module = LoadLibraryA("gdi32.dll");
+  if (module == NULL) {
+    return -1;
+  }
+  gdi->module = module;
+  gdi->create_compatible_dc =
+    (HDC(WINAPI *)(HDC))moonbit_screenshots_gdi_proc(module, "CreateCompatibleDC");
+  gdi->create_compatible_bitmap = (HBITMAP(WINAPI *)(HDC, int, int))
+    moonbit_screenshots_gdi_proc(module, "CreateCompatibleBitmap");
+  gdi->select_object =
+    (HGDIOBJ(WINAPI *)(HDC, HGDIOBJ))moonbit_screenshots_gdi_proc(module, "SelectObject");
+  gdi->bit_blt = (BOOL(WINAPI *)(
+    HDC,
+    int,
+    int,
+    int,
+    int,
+    HDC,
+    int,
+    int,
+    DWORD
+  ))moonbit_screenshots_gdi_proc(module, "BitBlt");
+  gdi->get_di_bits = (int(WINAPI *)(
+    HDC,
+    HBITMAP,
+    UINT,
+    UINT,
+    LPVOID,
+    LPBITMAPINFO,
+    UINT
+  ))moonbit_screenshots_gdi_proc(module, "GetDIBits");
+  gdi->delete_object =
+    (BOOL(WINAPI *)(HGDIOBJ))moonbit_screenshots_gdi_proc(module, "DeleteObject");
+  gdi->delete_dc = (BOOL(WINAPI *)(HDC))moonbit_screenshots_gdi_proc(module, "DeleteDC");
+  if (
+    gdi->create_compatible_dc == NULL ||
+    gdi->create_compatible_bitmap == NULL ||
+    gdi->select_object == NULL ||
+    gdi->bit_blt == NULL ||
+    gdi->get_di_bits == NULL ||
+    gdi->delete_object == NULL ||
+    gdi->delete_dc == NULL
+  ) {
+    FreeLibrary(module);
+    gdi->module = NULL;
+    return -1;
+  }
+  return 0;
+}
+
+static void moonbit_screenshots_unload_gdi(MoonBitScreenshotsGdi *gdi) {
+  if (gdi != NULL && gdi->module != NULL) {
+    FreeLibrary(gdi->module);
+    gdi->module = NULL;
+  }
+}
+
 static BOOL CALLBACK moonbit_screenshots_monitor_proc(
   HMONITOR monitor,
   HDC hdc,
@@ -109,24 +185,34 @@ int moonbit_screenshots_capture_windows(
     return -1;
   }
 
+  MoonBitScreenshotsGdi gdi;
+  if (moonbit_screenshots_load_gdi(&gdi) != 0) {
+    return -1;
+  }
   HDC screen_dc = GetDC(NULL);
   if (screen_dc == NULL) {
+    moonbit_screenshots_unload_gdi(&gdi);
     return -1;
   }
-  HDC memory_dc = CreateCompatibleDC(screen_dc);
-  HBITMAP bitmap = CreateCompatibleBitmap(screen_dc, capture_width, capture_height);
+  HDC memory_dc = gdi.create_compatible_dc(screen_dc);
+  HBITMAP bitmap = gdi.create_compatible_bitmap(
+    screen_dc,
+    capture_width,
+    capture_height
+  );
   if (memory_dc == NULL || bitmap == NULL) {
     if (bitmap != NULL) {
-      DeleteObject(bitmap);
+      gdi.delete_object(bitmap);
     }
     if (memory_dc != NULL) {
-      DeleteDC(memory_dc);
+      gdi.delete_dc(memory_dc);
     }
     ReleaseDC(NULL, screen_dc);
+    moonbit_screenshots_unload_gdi(&gdi);
     return -1;
   }
-  HGDIOBJ old_bitmap = SelectObject(memory_dc, bitmap);
-  BOOL copied = BitBlt(
+  HGDIOBJ old_bitmap = gdi.select_object(memory_dc, bitmap);
+  BOOL copied = gdi.bit_blt(
     memory_dc,
     0,
     0,
@@ -138,10 +224,11 @@ int moonbit_screenshots_capture_windows(
     SRCCOPY | CAPTUREBLT
   );
   if (!copied) {
-    SelectObject(memory_dc, old_bitmap);
-    DeleteObject(bitmap);
-    DeleteDC(memory_dc);
+    gdi.select_object(memory_dc, old_bitmap);
+    gdi.delete_object(bitmap);
+    gdi.delete_dc(memory_dc);
     ReleaseDC(NULL, screen_dc);
+    moonbit_screenshots_unload_gdi(&gdi);
     return -1;
   }
 
@@ -160,13 +247,14 @@ int moonbit_screenshots_capture_windows(
   if (bgra == NULL || rgba == NULL) {
     free(bgra);
     free(rgba);
-    SelectObject(memory_dc, old_bitmap);
-    DeleteObject(bitmap);
-    DeleteDC(memory_dc);
+    gdi.select_object(memory_dc, old_bitmap);
+    gdi.delete_object(bitmap);
+    gdi.delete_dc(memory_dc);
     ReleaseDC(NULL, screen_dc);
+    moonbit_screenshots_unload_gdi(&gdi);
     return -1;
   }
-  int got = GetDIBits(
+  int got = gdi.get_di_bits(
     memory_dc,
     bitmap,
     0,
@@ -175,10 +263,11 @@ int moonbit_screenshots_capture_windows(
     &info,
     DIB_RGB_COLORS
   );
-  SelectObject(memory_dc, old_bitmap);
-  DeleteObject(bitmap);
-  DeleteDC(memory_dc);
+  gdi.select_object(memory_dc, old_bitmap);
+  gdi.delete_object(bitmap);
+  gdi.delete_dc(memory_dc);
   ReleaseDC(NULL, screen_dc);
+  moonbit_screenshots_unload_gdi(&gdi);
   if (got == 0) {
     free(bgra);
     free(rgba);
