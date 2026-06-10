@@ -9,7 +9,7 @@
 screenshots through platform APIs and saving the result as PNG. It models
 capture targets in MoonBit, uses `justjavac/ffi` for null-terminated FFI string
 buffers, keeps source under `src`, uses the MIT license, and sets
-`"preferred-target": "native"` in `moon.mod.json`.
+`preferred_target = "native"` in `moon.mod`.
 
 ## Install
 
@@ -27,7 +27,7 @@ moon check --target native
 moon test --target native
 ```
 
-`justjavac/ffi` is declared in `moon.mod.json`; `moon update` fetches it and
+`justjavac/ffi` is declared in `moon.mod`; `moon update` fetches it and
 its transitive dependencies.
 
 ## Quick Start
@@ -147,7 +147,7 @@ Run the normal maintenance loop before publishing:
 
 ```sh
 moon fmt
-moon check --target native
+moon check --target all --warn-list +73
 moon test --target native
 moon test --target native --enable-coverage
 moon coverage analyze -p justjavac/screenshots -- -f cobertura -o coverage.xml

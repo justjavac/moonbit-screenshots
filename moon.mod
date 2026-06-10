@@ -1,9 +1,9 @@
 name = "justjavac/screenshots"
 
-version = "0.1.1"
+version = "0.1.2"
 
 import {
-  "justjavac/ffi@0.2.2",
+  "justjavac/ffi@0.2.3",
 }
 
 readme = "README.md"

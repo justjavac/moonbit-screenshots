@@ -44,7 +44,7 @@ jobs:
         run: moon update
 
       - name: Check
-        run: moon check --target native
+        run: moon check --target all --warn-list +73
 
       - name: Test with coverage
         run: moon test --target native --enable-coverage
