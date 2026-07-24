@@ -3,7 +3,7 @@ name = "justjavac/screenshots"
 version = "0.1.2"
 
 import {
-  "justjavac/ffi@0.2.3",
+  "justjavac/ffi@0.2.4",
 }
 
 readme = "README.md"
@@ -18,6 +18,4 @@ description = "Native screenshot command helpers for Windows, Linux, and macOS."
 
 preferred_target = "native"
 
-options(
-  source: "src",
-)
+source = "src"
